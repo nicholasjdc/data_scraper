@@ -1,0 +1,10 @@
+PROVENANCE
+- Decide General Plan For App
+- When searching wordlbank for example, check for the data type that you are fetching. Could be something crazy
+    - Create a graph accordingly
+- General wants
+    - Allow user to store Graphs and charts and news articls in a single Project section
+    - Allow the user to combine graphs, create interpretations
+    - Allow user to test causality with different metrics
+    - Allow user to perform AI sweeps, of their data and online (While always maintaining provenance)
+    - Allow user to import data (csv, text, pdf, whatever)

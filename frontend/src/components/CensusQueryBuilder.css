@@ -1,0 +1,347 @@
+.census-query-builder {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  margin: 1rem 0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  position: relative;
+}
+
+.query-builder-header {
+  margin-bottom: 1.5rem;
+  border-bottom: 2px solid #eee;
+  padding-bottom: 1rem;
+}
+
+.query-builder-header h3 {
+  margin: 0;
+  color: #333;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10;
+  border-radius: 8px;
+}
+
+.query-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.form-section label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.95rem;
+}
+
+.form-select {
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  background: white;
+  cursor: pointer;
+  transition: border-color 0.2s;
+}
+
+.form-select:focus {
+  outline: none;
+  border-color: #8884d8;
+}
+
+.form-actions {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 2px solid #eee;
+}
+
+.variable-list-empty {
+  padding: 2rem;
+  text-align: center;
+  color: #999;
+  font-style: italic;
+}
+
+.variable-manual-entry {
+  padding: 1rem;
+  background: #fff9e6;
+  border: 1px solid #ffd700;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+}
+
+.manual-entry-note {
+  margin: 0 0 0.75rem 0;
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.manual-variable-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.manual-entry-help {
+  margin: 0.5rem 0 0 0;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+.manual-entry-help a {
+  color: #8884d8;
+  text-decoration: none;
+}
+
+.manual-entry-help a:hover {
+  text-decoration: underline;
+}
+
+.variable-search {
+  margin-bottom: 1rem;
+}
+
+.variable-search .search-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.variable-list {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 6px;
+  padding: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.variable-item {
+  display: flex;
+  align-items: flex-start;
+  padding: 0.75rem;
+  border-bottom: 1px solid #f0f0f0;
+  cursor: pointer;
+}
+
+.variable-item:last-child {
+  border-bottom: none;
+}
+
+.variable-item:hover {
+  background: #f8f8ff;
+}
+
+.variable-item input[type="checkbox"] {
+  margin-right: 0.75rem;
+  margin-top: 0.25rem;
+}
+
+.variable-info {
+  flex: 1;
+}
+
+.variable-info strong {
+  display: block;
+  color: #333;
+  margin-bottom: 0.25rem;
+}
+
+.variable-info span {
+  display: block;
+  color: #666;
+  font-size: 0.9rem;
+  margin-bottom: 0.25rem;
+}
+
+.variable-info small {
+  display: block;
+  color: #999;
+  font-size: 0.85rem;
+}
+
+.selected-variables {
+  margin-top: 0.5rem;
+  padding: 1rem;
+  background: #f8f8ff;
+  border-radius: 6px;
+}
+
+.selected-variables strong {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.variable-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.variable-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.75rem;
+  background: #8884d8;
+  color: white;
+  border-radius: 20px;
+  font-size: 0.85rem;
+}
+
+.variable-chip button {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.variable-chip button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+}
+
+.geography-selector {
+  margin-bottom: 1rem;
+}
+
+.geography-selector > label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.geography-select {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.state-selector,
+.county-selector {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f8f8ff;
+  border-radius: 6px;
+}
+
+.state-selector label,
+.county-selector label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.fips-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-bottom: 1rem;
+}
+
+.custom-geography {
+  margin-top: 1rem;
+}
+
+.custom-geography label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.custom-geo-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.time-range-selector {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.date-input-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.date-input-group label {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+  color: #333;
+}
+
+.date-input {
+  padding: 0.75rem;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 1rem;
+}
+
+.execute-button {
+  padding: 0.75rem 2rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  background: #8884d8;
+  color: white;
+  width: 100%;
+  max-width: 300px;
+  margin: 0 auto;
+}
+
+.execute-button:hover:not(:disabled) {
+  background: #7773c8;
+}
+
+.execute-button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
