@@ -1,0 +1,90 @@
+.provenance-badge-wrapper {
+  display: inline-block;
+  position: relative;
+}
+
+.provenance-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  background: #eef2ff;
+  border: 1px solid #c7d2fe;
+  border-radius: 4px;
+  font-size: 11px;
+  color: #4338ca;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+
+.provenance-badge:hover {
+  background: #e0e7ff;
+}
+
+.badge-source {
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.badge-sep {
+  opacity: 0.4;
+}
+
+.badge-time {
+  color: #6366f1;
+}
+
+.badge-chevron {
+  font-size: 9px;
+  opacity: 0.6;
+}
+
+.provenance-detail {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 100;
+  background: #1e1e2e;
+  border: 1px solid #3f3f5a;
+  border-radius: 6px;
+  padding: 10px 12px;
+  min-width: 340px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+}
+
+.provenance-detail-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.provenance-detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.provenance-label {
+  font-size: 10px;
+  color: #9ca3af;
+  min-width: 72px;
+  font-family: monospace;
+}
+
+.provenance-value {
+  font-size: 11px;
+  color: #a5f3fc;
+  font-family: monospace;
+  word-break: break-all;
+}
+
+.provenance-raw-link {
+  font-size: 11px;
+  color: #818cf8;
+  text-decoration: none;
+}
+
+.provenance-raw-link:hover {
+  text-decoration: underline;
+}

@@ -1,213 +1,183 @@
+"""
+Alpha Vantage service — forex only.
+
+The free tier is 25 requests/day, which is too limited for stock or crypto
+data when yfinance covers those without a daily cap. This service is kept
+for FX_DAILY (clean historical forex rates) which yfinance handles poorly.
+
+Accepted series_id formats:
+  EUR/USD   — from_symbol / to_symbol  (slash delimiter)
+  EURUSD    — 3+3 letter concat (split at position 3)
+"""
 from datetime import datetime
 from typing import Optional, Dict, Any, List, Tuple
 import pandas as pd
-from alpha_vantage.timeseries import TimeSeries
 from alpha_vantage.foreignexchange import ForeignExchange
-from alpha_vantage.cryptocurrencies import CryptoCurrencies
 from fastapi import HTTPException
 
 from app.config import settings
-from app.data.alphavantage_symbols import (
-    validate_symbol_format,
-    search_symbols as search_alphavantage_symbols,
-)
+
+
+_FOREX_EXAMPLES = [
+    ("EUR/USD", "forex"), ("GBP/USD", "forex"), ("USD/JPY", "forex"),
+    ("USD/CHF", "forex"), ("AUD/USD", "forex"), ("USD/CAD", "forex"),
+    ("NZD/USD", "forex"), ("EUR/GBP", "forex"), ("EUR/JPY", "forex"),
+    ("GBP/JPY", "forex"), ("USD/CNY", "forex"), ("USD/KRW", "forex"),
+    ("USD/INR", "forex"), ("USD/BRL", "forex"), ("USD/MXN", "forex"),
+    ("USD/ZAR", "forex"), ("EUR/CHF", "forex"), ("EUR/AUD", "forex"),
+]
+
+_MAJOR_CURRENCIES = {
+    "EUR", "USD", "GBP", "JPY", "CHF", "AUD", "CAD", "NZD",
+    "CNY", "HKD", "SGD", "SEK", "NOK", "DKK", "MXN", "BRL",
+    "ZAR", "KRW", "INR", "RUB", "TRY", "PLN", "CZK", "HUF",
+}
+
+
+def _parse_fx_pair(series_id: str) -> Tuple[str, str]:
+    """Return (from_symbol, to_symbol) or raise ValueError."""
+    s = series_id.upper().strip()
+    if "/" in s:
+        parts = s.split("/")
+        if len(parts) == 2 and all(len(p) == 3 for p in parts):
+            return parts[0], parts[1]
+    if len(s) == 6:
+        return s[:3], s[3:]
+    raise ValueError(
+        f"Invalid forex pair '{series_id}'. "
+        "Use format XXX/YYY (e.g. EUR/USD) or XXXYYY (e.g. EURUSD)."
+    )
 
 
 class AlphaVantageService:
-    """Service for interacting with the Alpha Vantage API."""
-    
+    """Alpha Vantage forex service (FX_DAILY only)."""
+
     def __init__(self):
-        """Initialize Alpha Vantage client with API key."""
         if not settings.alpha_vantage_api_key:
             raise ValueError(
-                "ALPHA_VANTAGE_API_KEY not found. Please set it as an environment variable "
-                "or in a .env file."
+                "ALPHA_VANTAGE_API_KEY not found. "
+                "Set it in .env or as an environment variable."
             )
-        self.api_key = settings.alpha_vantage_api_key
-        self.ts = TimeSeries(key=self.api_key, output_format='pandas')
-        self.fx = ForeignExchange(key=self.api_key, output_format='pandas')
-        self.cc = CryptoCurrencies(key=self.api_key, output_format='pandas')
-    
+        self.fx = ForeignExchange(
+            key=settings.alpha_vantage_api_key, output_format="pandas"
+        )
+
     def get_series(
         self,
         series_id: str,
         start_date: Optional[str] = None,
         end_date: Optional[str] = None,
-        function: str = "TIME_SERIES_DAILY",
-        symbol: Optional[str] = None,
-        **kwargs
+        **kwargs,
     ) -> Dict[str, Any]:
-        """
-        Get time series data from Alpha Vantage.
-        
-        Args:
-            series_id: Symbol or identifier (e.g., 'AAPL', 'EUR/USD', 'BTC')
-            start_date: Start date in YYYY-MM-DD format (filtered client-side)
-            end_date: End date in YYYY-MM-DD format (filtered client-side)
-            function: API function (TIME_SERIES_DAILY, FX_DAILY, CRYPTO_INTRADAY, etc.)
-            symbol: Alternative symbol parameter (if series_id not used)
-            **kwargs: Additional parameters for specific functions
-        
-        Returns:
-            Dictionary containing series data and metadata
-        """
         try:
-            symbol = symbol or series_id
-            
-            # Determine data type and fetch accordingly
-            # Note: outputsize='full' is a premium feature, using 'compact' for free tier
-            if function.startswith("FX_"):
-                # Forex data
-                if function == "FX_DAILY":
-                    data, meta = self.fx.get_currency_exchange_daily(
-                        from_symbol=symbol.split('/')[0] if '/' in symbol else symbol[:3],
-                        to_symbol=symbol.split('/')[1] if '/' in symbol else symbol[3:],
-                        outputsize='compact'  # Changed from 'full' to 'compact' (free tier)
-                    )
-                else:
-                    raise ValueError(f"Unsupported FX function: {function}")
-            elif function.startswith("CRYPTO"):
-                # Cryptocurrency data
-                if function == "CRYPTO_INTRADAY":
-                    data, meta = self.cc.get_crypto_intraday(
-                        symbol=symbol,
-                        market='USD',
-                        interval='60min',
-                        outputsize='compact'  # Changed from 'full' to 'compact' (free tier)
-                    )
-                elif function == "DIGITAL_CURRENCY_DAILY":
-                    data, meta = self.cc.get_digital_currency_daily(
-                        symbol=symbol,
-                        market='USD'
-                    )
-                else:
-                    raise ValueError(f"Unsupported crypto function: {function}")
-            else:
-                # Stock data
-                if function == "TIME_SERIES_DAILY":
-                    data, meta = self.ts.get_daily(symbol=symbol, outputsize='compact')  # Changed from 'full' to 'compact' (free tier)
-                elif function == "TIME_SERIES_INTRADAY":
-                    interval = kwargs.get('interval', '60min')
-                    data, meta = self.ts.get_intraday(symbol=symbol, interval=interval, outputsize='compact')  # Changed from 'full' to 'compact' (free tier)
-                elif function == "TIME_SERIES_WEEKLY":
-                    data, meta = self.ts.get_weekly(symbol=symbol)
-                elif function == "TIME_SERIES_MONTHLY":
-                    data, meta = self.ts.get_monthly(symbol=symbol)
-                else:
-                    raise ValueError(f"Unsupported function: {function}")
-            
-            # Convert to standardized format
-            # Alpha Vantage returns data with date as index and OHLCV columns
-            # We'll use the 'close' price as the value
+            from_sym, to_sym = _parse_fx_pair(series_id)
+
+            data, _meta = self.fx.get_currency_exchange_daily(
+                from_symbol=from_sym,
+                to_symbol=to_sym,
+                outputsize="full",
+            )
+
             if data is None or data.empty:
                 raise ValueError(f"No data returned for {series_id}")
-            
-            # Extract close prices (or 4. close for forex)
-            if 'close' in data.columns:
-                series = data['close']
-            elif '4. close' in data.columns:
-                series = data['4. close']
-            else:
-                # Use first numeric column
-                numeric_cols = data.select_dtypes(include=['float64', 'int64']).columns
-                if len(numeric_cols) > 0:
-                    series = data[numeric_cols[0]]
-                else:
-                    raise ValueError("No numeric data columns found")
-            
-            # Convert to dict with date strings
+
+            close_col = next(
+                (c for c in data.columns if "close" in c.lower()), None
+            )
+            if close_col is None:
+                raise ValueError(f"No close-price column in response for {series_id}")
+
+            series = data[close_col]
             data_points = []
             for date, value in series.items():
-                date_str = date.strftime('%Y-%m-%d') if isinstance(date, pd.Timestamp) else str(date)
-                
-                # Apply date filtering
+                date_str = (
+                    date.strftime("%Y-%m-%d")
+                    if isinstance(date, pd.Timestamp)
+                    else str(date)
+                )
                 if start_date and date_str < start_date:
                     continue
                 if end_date and date_str > end_date:
                     continue
-                
-                data_points.append({
-                    "date": date_str,
-                    "value": float(value) if pd.notna(value) else None
-                })
-            
-            # Sort by date
-            data_points.sort(key=lambda x: x['date'])
-            
+                if pd.notna(value):
+                    data_points.append({"date": date_str, "value": float(value)})
+
+            data_points.sort(key=lambda x: x["date"])
+
             return {
                 "series_id": series_id,
-                "title": meta.get('2. Symbol', series_id) if isinstance(meta, dict) else f"{series_id} ({function})",
-                "units": "Price",
-                "frequency": "Daily" if "DAILY" in function else "Intraday" if "INTRADAY" in function else "Unknown",
+                "title": f"{from_sym}/{to_sym} Exchange Rate",
+                "units": to_sym,
+                "frequency": "Daily",
                 "seasonal_adjustment": "Not Seasonally Adjusted",
                 "last_updated": datetime.now().isoformat(),
-                "observation_start": data_points[0]['date'] if data_points else "",
-                "observation_end": data_points[-1]['date'] if data_points else "",
+                "observation_start": data_points[0]["date"] if data_points else "",
+                "observation_end": data_points[-1]["date"] if data_points else "",
                 "data": data_points,
-                "data_points": len(data_points)
+                "data_points": len(data_points),
             }
-            
+
+        except ValueError as e:
+            raise HTTPException(status_code=400, detail=str(e))
         except Exception as e:
             raise HTTPException(
                 status_code=500,
-                detail=f"Error fetching Alpha Vantage series {series_id}: {str(e)}"
+                detail=f"Error fetching Alpha Vantage forex {series_id}: {e}",
             )
-    
+
     def validate_symbol(self, symbol: str) -> Tuple[bool, Optional[str]]:
-        """
-        Validate symbol format.
-        Returns (is_valid, error_message).
-        """
-        if not symbol or not symbol.strip():
-            return False, "Symbol cannot be empty"
-        
-        is_valid, symbol_type = validate_symbol_format(symbol)
-        if not is_valid:
-            if '/' in symbol:
-                return False, f"Invalid forex pair format: {symbol}. Use format XXX/YYY (e.g., EUR/USD, GBP/USD)"
-            else:
-                return False, f"Invalid symbol format: {symbol}. Use stock symbols (e.g., AAPL) or crypto (e.g., BTC)"
-        
-        return True, None
-    
-    def get_suggestions(self, query: str, category: Optional[str] = None, limit: int = 20) -> List[Tuple[str, str]]:
-        """
-        Get symbol suggestions based on query.
-        Returns list of (symbol, type) tuples.
-        """
-        return search_alphavantage_symbols(query, category=category, limit=limit)
-    
+        try:
+            _parse_fx_pair(symbol)
+            return True, None
+        except ValueError as e:
+            return False, str(e)
+
+    def get_suggestions(
+        self, query: str, category: Optional[str] = None, limit: int = 20
+    ) -> List[Tuple[str, str]]:
+        q = query.upper()
+        return [
+            pair for pair in _FOREX_EXAMPLES if q in pair[0]
+        ][:limit]
+
     def search_series(
         self,
         search_text: str,
         limit: int = 20,
         order_by: Optional[str] = None,
-        sort_order: Optional[str] = None
+        sort_order: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """
-        Search is not directly supported by Alpha Vantage API.
-        Returns a message indicating manual symbol lookup is required.
-        """
+        q = search_text.upper()
+        matches = [p[0] for p in _FOREX_EXAMPLES if q in p[0]][:limit]
         return {
             "query": search_text,
-            "results": [],
-            "count": 0,
-            "message": "Alpha Vantage does not support search. Please use stock symbols (e.g., AAPL, MSFT) or forex pairs (e.g., EUR/USD)."
+            "results": [
+                {
+                    "series_id": sym,
+                    "title": f"{sym[:3]}/{sym[3:] if '/' not in sym else sym.split('/')[1]} Exchange Rate",
+                    "units": "Exchange Rate",
+                    "frequency": "Daily",
+                    "seasonal_adjustment": "Not Seasonally Adjusted",
+                    "popularity": 0,
+                }
+                for sym in matches
+            ],
+            "count": len(matches),
+            "message": (
+                "Alpha Vantage is used for forex only (e.g. EUR/USD, GBP/USD). "
+                "For stocks use Yahoo Finance; for crypto consider FRED commodity indices."
+            ),
         }
 
 
-# Global service instance (lazy initialization)
 _alphavantage_service: Optional[AlphaVantageService] = None
 
 
 def get_alphavantage_service() -> Optional[AlphaVantageService]:
-    """Get or create Alpha Vantage service instance."""
     global _alphavantage_service
     if _alphavantage_service is None:
         try:
             _alphavantage_service = AlphaVantageService()
         except ValueError:
-            # API key not configured, return None
             return None
     return _alphavantage_service
-

@@ -6,14 +6,15 @@ import type { MultipleSeriesResponse, SearchResponse, DataSource, DataSourceInfo
 import LoadingSpinner from './LoadingSpinner';
 import AutocompleteInput from './AutocompleteInput';
 import CensusQueryBuilder from './CensusQueryBuilder';
+import ProvenanceBadge from './ProvenanceBadge';
+import AIAnalysisPanel from './AIAnalysisPanel';
 import './IndicatorDashboard.css';
 
 const IndicatorDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [datasets, setDatasets] = useState<TimeSeriesDataset[]>([]);
-  
-  // Search state
+
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResponse | null>(null);
   const [searchLoading, setSearchLoading] = useState(false);
@@ -22,16 +23,13 @@ const IndicatorDashboard: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<string>('desc');
   const [selectedSource, setSelectedSource] = useState<DataSource>('fred');
   const [sources, setSources] = useState<DataSourceInfo[]>([]);
-  
-  // Direct entry state
+
   const [directEntrySymbol, setDirectEntrySymbol] = useState<string>('');
   const [directEntryLoading, setDirectEntryLoading] = useState(false);
-  
-  // Census query result state
+
   const [censusQueryResult, setCensusQueryResult] = useState<CensusQueryResponse | null>(null);
 
   useEffect(() => {
-    // Load available sources on mount
     const loadSources = async () => {
       try {
         const response = await fetchSources();
@@ -43,19 +41,19 @@ const IndicatorDashboard: React.FC = () => {
     loadSources();
   }, []);
 
-  // Check if current source supports search
   const currentSourceInfo = sources.find(s => s.id === selectedSource);
   const supportsSearch = currentSourceInfo?.supports_search ?? false;
 
-  const handleSearch = async () => {
-    if (!searchQuery.trim()) {
-      return;
-    }
+  // Collect all fetch_ids from loaded datasets for AI analysis
+  const allFetchIds = datasets
+    .map(ds => ds.metadata?.fetch_id as string | undefined)
+    .filter((id): id is string => Boolean(id));
 
+  const handleSearch = async () => {
+    if (!searchQuery.trim()) return;
     setSearchLoading(true);
     setSearchError(null);
     setSearchResults(null);
-
     try {
       const response = await fetchSearchResults({
         q: searchQuery.trim(),
@@ -75,13 +73,9 @@ const IndicatorDashboard: React.FC = () => {
   const handleFetchSeries = async (seriesId: string, source?: DataSource) => {
     setLoading(true);
     setError(null);
-
     try {
-      const response = await fetchSeries(seriesId, {
-        source: source || selectedSource,
-      });
-      
-      // Transform to TimeSeriesDataset format
+      const response = await fetchSeries(seriesId, { source: source || selectedSource });
+
       const graphData: TimeSeriesDataset = {
         id: `${response.source || 'fred'}_${response.series_id}`,
         label: response.title,
@@ -90,16 +84,15 @@ const IndicatorDashboard: React.FC = () => {
           units: response.units,
           frequency: response.frequency,
           source: response.source || 'fred',
+          series_id: response.series_id,
+          fetch_id: response.fetch_id,
+          fetched_at: response.fetched_at,
         },
       };
 
-      // Add to datasets (check if already exists to avoid duplicates)
-      setDatasets((prev) => {
-        const exists = prev.some((ds) => ds.id === graphData.id);
-        if (exists) {
-          return prev;
-        }
-        return [...prev, graphData];
+      setDatasets(prev => {
+        const exists = prev.some(ds => ds.id === graphData.id);
+        return exists ? prev : [...prev, graphData];
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch series');
@@ -109,20 +102,16 @@ const IndicatorDashboard: React.FC = () => {
   };
 
   const handleRemoveGraph = (seriesId: string) => {
-    setDatasets((prev) => prev.filter((ds) => ds.id !== seriesId));
+    setDatasets(prev => prev.filter(ds => ds.id !== seriesId));
   };
 
   const handleDirectEntry = async () => {
-    if (!directEntrySymbol.trim()) {
-      return;
-    }
-
+    if (!directEntrySymbol.trim()) return;
     setDirectEntryLoading(true);
     setError(null);
-
     try {
       await handleFetchSeries(directEntrySymbol.trim(), selectedSource);
-      setDirectEntrySymbol(''); // Clear input on success
+      setDirectEntrySymbol('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch data');
     } finally {
@@ -130,17 +119,15 @@ const IndicatorDashboard: React.FC = () => {
     }
   };
 
-  // Get source-specific guidance text
   const getSourceGuidance = (): string => {
     switch (selectedSource) {
-      case 'yfinance':
-        return 'Enter ticker symbols (e.g., AAPL, MSFT, ^GSPC for S&P 500)';
-      case 'alphavantage':
-        return 'Enter stock symbols (e.g., AAPL, MSFT) or forex pairs (e.g., EUR/USD)';
-      case 'census':
-        return 'Enter variable names from Census datasets';
-      default:
-        return 'Enter symbol or series ID';
+      case 'yfinance': return 'Enter ticker symbols (e.g., AAPL, MSFT, ^GSPC for S&P 500)';
+      case 'alphavantage': return 'Enter forex pairs (e.g., EUR/USD, GBP/USD)';
+      case 'census': return 'Enter variable names from Census datasets';
+      case 'edgar': return 'Enter TICKER:CONCEPT (e.g., AAPL:Revenues, MSFT:NetIncomeLoss)';
+      case 'oecd': return 'Enter DATASET:KEY (e.g., QNA:USA.B1_GS1.GYSA.Q, MEI:USA.LRHUTTTT.ST.M)';
+      case 'ecb': return 'Enter FLOW/KEY (e.g., FM/B.U2.EUR.RT0.BB.1000.00.MRR_FR.AN)';
+      default: return 'Enter symbol or series ID';
     }
   };
 
@@ -148,22 +135,22 @@ const IndicatorDashboard: React.FC = () => {
     setLoading(true);
     setError(null);
     setDatasets([]);
-
     try {
       const response: MultipleSeriesResponse = await fetchCommonIndicators();
-      
-      // Transform API response to graph format - one dataset per series
-      const graphData: TimeSeriesDataset[] = Object.entries(response.series).map(
-        ([id, series]) => ({
-          id,
-          label: series.title,
-          data: normalizeTimeSeriesData(series.data),
-          metadata: {
-            units: series.units,
-            frequency: series.frequency,
-          },
-        })
-      );
+
+      const graphData: TimeSeriesDataset[] = Object.entries(response.series).map(([id, series]) => ({
+        id,
+        label: series.title,
+        data: normalizeTimeSeriesData(series.data),
+        metadata: {
+          units: series.units,
+          frequency: series.frequency,
+          source: response.source || 'fred',
+          series_id: id,
+          fetch_id: series.fetch_id,
+          fetched_at: series.fetched_at,
+        },
+      }));
 
       setDatasets(graphData);
     } catch (err) {
@@ -177,7 +164,7 @@ const IndicatorDashboard: React.FC = () => {
     <div className="indicator-dashboard">
       <header className="dashboard-header">
         <h1>Economic Data Dashboard</h1>
-        <p>View economic data from multiple sources: FRED, Alpha Vantage, Yahoo Finance, World Bank, and U.S. Census Bureau</p>
+        <p>View economic data from multiple sources: FRED, Yahoo Finance, World Bank, Census Bureau, SEC EDGAR, OECD, and ECB</p>
       </header>
 
       <div className="search-section">
@@ -187,10 +174,8 @@ const IndicatorDashboard: React.FC = () => {
             <select
               id="source-select"
               value={selectedSource}
-              onChange={(e) => {
-                const newSource = e.target.value as DataSource;
-                setSelectedSource(newSource);
-                // Clear search results and direct entry when switching sources
+              onChange={e => {
+                setSelectedSource(e.target.value as DataSource);
                 setSearchResults(null);
                 setDirectEntrySymbol('');
                 setSearchError(null);
@@ -198,28 +183,21 @@ const IndicatorDashboard: React.FC = () => {
               className="source-select"
               disabled={searchLoading || directEntryLoading}
             >
-              {sources.map((source) => (
-                <option key={source.id} value={source.id}>
-                  {source.name}
-                </option>
+              {sources.map(source => (
+                <option key={source.id} value={source.id}>{source.name}</option>
               ))}
             </select>
           </div>
         </div>
 
         {supportsSearch ? (
-          // Search mode for FRED and World Bank
           <>
             <div className="search-controls">
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleSearch();
-                  }
-                }}
+                onChange={e => setSearchQuery(e.target.value)}
+                onKeyPress={e => { if (e.key === 'Enter') handleSearch(); }}
                 placeholder="Search for economic data series..."
                 className="search-input"
                 disabled={searchLoading}
@@ -238,7 +216,7 @@ const IndicatorDashboard: React.FC = () => {
                 <select
                   id="order-by-select"
                   value={orderBy}
-                  onChange={(e) => setOrderBy(e.target.value)}
+                  onChange={e => setOrderBy(e.target.value)}
                   className="filter-select"
                   disabled={searchLoading}
                 >
@@ -254,7 +232,7 @@ const IndicatorDashboard: React.FC = () => {
                 <select
                   id="sort-order-select"
                   value={sortOrder}
-                  onChange={(e) => setSortOrder(e.target.value)}
+                  onChange={e => setSortOrder(e.target.value)}
                   className="filter-select"
                   disabled={searchLoading}
                 >
@@ -265,9 +243,7 @@ const IndicatorDashboard: React.FC = () => {
             </div>
 
             {searchError && (
-              <div className="error-message">
-                <p>Search Error: {searchError}</p>
-              </div>
+              <div className="error-message"><p>Search Error: {searchError}</p></div>
             )}
 
             {searchResults && (
@@ -279,34 +255,22 @@ const IndicatorDashboard: React.FC = () => {
                   )}
                 </h2>
                 {searchResults.results.length === 0 && searchResults.message && (
-                  <div className="search-no-results">
-                    <p>{searchResults.message}</p>
-                  </div>
+                  <div className="search-no-results"><p>{searchResults.message}</p></div>
                 )}
                 <div className="search-results-list">
-                  {searchResults.results.map((result) => (
+                  {searchResults.results.map(result => (
                     <div key={result.series_id} className="search-result-card">
                       <div className="search-result-header">
                         <h3 className="search-result-title">{result.title}</h3>
                         <span className="source-badge">{selectedSource}</span>
                       </div>
                       <div className="search-result-metadata">
-                        <span className="metadata-item">
-                          <strong>Series ID:</strong> {result.series_id}
-                        </span>
-                        <span className="metadata-item">
-                          <strong>Units:</strong> {result.units || 'N/A'}
-                        </span>
-                        <span className="metadata-item">
-                          <strong>Frequency:</strong> {result.frequency || 'N/A'}
-                        </span>
-                        <span className="metadata-item">
-                          <strong>Seasonal Adjustment:</strong> {result.seasonal_adjustment || 'N/A'}
-                        </span>
+                        <span className="metadata-item"><strong>Series ID:</strong> {result.series_id}</span>
+                        <span className="metadata-item"><strong>Units:</strong> {result.units || 'N/A'}</span>
+                        <span className="metadata-item"><strong>Frequency:</strong> {result.frequency || 'N/A'}</span>
+                        <span className="metadata-item"><strong>Seasonal Adjustment:</strong> {result.seasonal_adjustment || 'N/A'}</span>
                         {result.popularity !== undefined && (
-                          <span className="metadata-item">
-                            <strong>Popularity:</strong> {result.popularity}
-                          </span>
+                          <span className="metadata-item"><strong>Popularity:</strong> {result.popularity}</span>
                         )}
                       </div>
                       <button
@@ -323,34 +287,29 @@ const IndicatorDashboard: React.FC = () => {
             )}
           </>
         ) : selectedSource === 'census' ? (
-          // Census Query Builder
           <CensusQueryBuilder
-            onQueryResult={(result) => {
+            onQueryResult={result => {
               setCensusQueryResult(result);
-              // Convert Census result to time series format if possible
               if (result.data && result.data.length > 0) {
-                // Try to find time-based variables
                 const timeColumn = result.headers.find(h => h.toLowerCase() === 'time');
                 if (timeColumn) {
                   result.variables.forEach(variable => {
                     const dataPoints = result.data
                       .map(row => {
-                        const timeStr = row[timeColumn];
+                        const timeStr = row[timeColumn] as string;
                         const value = row[variable];
                         if (timeStr && value !== null && value !== undefined) {
                           try {
                             return {
                               date: timeStr.length === 4 ? `${timeStr}-01-01` : timeStr,
-                              value: parseFloat(value)
+                              value: parseFloat(value as string),
                             };
-                          } catch {
-                            return null;
-                          }
+                          } catch { return null; }
                         }
                         return null;
                       })
-                      .filter(dp => dp !== null);
-                    
+                      .filter((dp): dp is { date: string; value: number } => dp !== null);
+
                     if (dataPoints.length > 0) {
                       const graphData: TimeSeriesDataset = {
                         id: `census_${result.dataset}_${variable}`,
@@ -360,35 +319,29 @@ const IndicatorDashboard: React.FC = () => {
                           units: '',
                           frequency: result.dataset.startsWith('timeseries') ? 'Monthly' : 'Annual',
                           source: 'census',
+                          series_id: variable,
+                          fetch_id: result.fetch_id,
+                          fetched_at: result.fetched_at,
                         },
                       };
-                      
-                      setDatasets((prev) => {
-                        const exists = prev.some((ds) => ds.id === graphData.id);
-                        if (exists) {
-                          return prev;
-                        }
-                        return [...prev, graphData];
+                      setDatasets(prev => {
+                        const exists = prev.some(ds => ds.id === graphData.id);
+                        return exists ? prev : [...prev, graphData];
                       });
                     }
                   });
                 }
               }
             }}
-            onError={(error) => setSearchError(error)}
+            onError={err => setSearchError(err)}
           />
         ) : (
-          // Direct entry mode for Yahoo Finance and Alpha Vantage
           <div className="direct-entry-section">
             <div className="direct-entry-controls">
               <AutocompleteInput
                 value={directEntrySymbol}
                 onChange={setDirectEntrySymbol}
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    handleDirectEntry();
-                  }
-                }}
+                onKeyPress={e => { if (e.key === 'Enter') handleDirectEntry(); }}
                 placeholder={getSourceGuidance()}
                 disabled={directEntryLoading || loading}
                 source={selectedSource}
@@ -411,7 +364,22 @@ const IndicatorDashboard: React.FC = () => {
               )}
               {selectedSource === 'alphavantage' && (
                 <div className="direct-entry-examples">
-                  <strong>Examples:</strong> AAPL (Apple stock), EUR/USD (Euro to USD), BTC (Bitcoin)
+                  <strong>Examples:</strong> EUR/USD, GBP/USD, USD/JPY, CHF/USD
+                </div>
+              )}
+              {selectedSource === 'edgar' && (
+                <div className="direct-entry-examples">
+                  <strong>Examples:</strong> AAPL:Revenues, MSFT:NetIncomeLoss, TSLA:EarningsPerShareBasic, AMZN:Assets
+                </div>
+              )}
+              {selectedSource === 'oecd' && (
+                <div className="direct-entry-examples">
+                  <strong>Examples:</strong> QNA:USA.B1_GS1.GYSA.Q (US GDP), MEI:USA.LRHUTTTT.ST.M (US unemployment), PRICES_CPI:DEU.CPALTT01.GY.M (Germany CPI)
+                </div>
+              )}
+              {selectedSource === 'ecb' && (
+                <div className="direct-entry-examples">
+                  <strong>Examples:</strong> FM/B.U2.EUR.RT0.BB.1000.00.MRR_FR.AN (ECB rate), ICP/M.U2.N.000000.4.ANR (HICP), EXR/D.USD.EUR.SP00.A (USD/EUR)
                 </div>
               )}
             </div>
@@ -420,11 +388,7 @@ const IndicatorDashboard: React.FC = () => {
       </div>
 
       <div className="dashboard-controls">
-        <button
-          onClick={handleFetchIndicators}
-          disabled={loading}
-          className="fetch-button"
-        >
+        <button onClick={handleFetchIndicators} disabled={loading} className="fetch-button">
           {loading ? 'Fetching...' : 'Fetch Indicators'}
         </button>
       </div>
@@ -432,14 +396,12 @@ const IndicatorDashboard: React.FC = () => {
       {loading && <LoadingSpinner />}
 
       {error && (
-        <div className="error-message">
-          <p>Error: {error}</p>
-        </div>
+        <div className="error-message"><p>Error: {error}</p></div>
       )}
 
       {datasets.length > 0 && (
         <div className="graphs-container">
-          {datasets.map((dataset) => (
+          {datasets.map(dataset => (
             <div key={dataset.id} className="graph-card">
               <div className="graph-header">
                 <div className="graph-header-content">
@@ -453,9 +415,6 @@ const IndicatorDashboard: React.FC = () => {
                   </button>
                 </div>
                 <div className="graph-metadata">
-                  <span className="metadata-item source-badge">
-                    Source: {dataset.metadata?.source || 'fred'}
-                  </span>
                   <span className="metadata-item">
                     Units: {dataset.metadata?.units || 'N/A'}
                   </span>
@@ -465,6 +424,16 @@ const IndicatorDashboard: React.FC = () => {
                   <span className="metadata-item">
                     Data Points: {dataset.data.length}
                   </span>
+                  {(dataset.metadata?.fetch_id != null && dataset.metadata?.fetched_at != null) && (
+                    <span className="metadata-item">
+                      <ProvenanceBadge
+                        fetchId={String(dataset.metadata.fetch_id)}
+                        fetchedAt={String(dataset.metadata.fetched_at)}
+                        source={String(dataset.metadata.source ?? 'unknown')}
+                        seriesId={String(dataset.metadata.series_id ?? dataset.id)}
+                      />
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="graph-wrapper">
@@ -490,6 +459,16 @@ const IndicatorDashboard: React.FC = () => {
             <p><strong>Geography:</strong> {censusQueryResult.geography}</p>
             <p><strong>Variables:</strong> {censusQueryResult.variables.join(', ')}</p>
             <p><strong>Records:</strong> {censusQueryResult.count}</p>
+            {censusQueryResult.fetch_id && censusQueryResult.fetched_at && (
+              <div style={{ marginTop: '8px' }}>
+                <ProvenanceBadge
+                  fetchId={censusQueryResult.fetch_id}
+                  fetchedAt={censusQueryResult.fetched_at}
+                  source="census"
+                  seriesId={censusQueryResult.dataset}
+                />
+              </div>
+            )}
           </div>
           <div className="census-table-container">
             <table className="census-table">
@@ -504,24 +483,24 @@ const IndicatorDashboard: React.FC = () => {
                 {censusQueryResult.data.slice(0, 100).map((row, idx) => (
                   <tr key={idx}>
                     {censusQueryResult.headers.map(header => (
-                      <td key={header}>{row[header] || ''}</td>
+                      <td key={header}>{String(row[header] ?? '')}</td>
                     ))}
                   </tr>
                 ))}
               </tbody>
             </table>
             {censusQueryResult.data.length > 100 && (
-              <p className="census-table-note">Showing first 100 of {censusQueryResult.data.length} records</p>
+              <p className="census-table-note">
+                Showing first 100 of {censusQueryResult.data.length} records
+              </p>
             )}
           </div>
         </div>
       )}
+
+      <AIAnalysisPanel fetchIds={allFetchIds} />
     </div>
   );
 };
 
 export default IndicatorDashboard;
-
-
-
-

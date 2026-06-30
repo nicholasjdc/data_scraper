@@ -1,181 +1,200 @@
 """
-Common U.S. Census Bureau variable names for autocomplete and validation.
-Organized by dataset/category.
+Real Census Bureau variable names for autocomplete and validation.
+
+For EITS (Economic Indicators Time Series) datasets the API is multi-dimensional:
+  you request CELL_VALUE and filter by dimension codes (CATEGORY_CODE, NAICS, etc.)
+  rather than using a single composite variable ID.
+
+For ACS (American Community Survey) datasets you request table variables like
+  B01001_001E directly.
+
+See https://www.census.gov/data/developers/data-sets.html for dataset documentation.
 """
 from typing import List
 
-# Economic Indicators Time Series (timeseries/eits/mid)
-ECONOMIC_INDICATORS = [
-    "EMPSAL",      # Employment and Salaries
-    "EMPSALUS",    # Employment and Salaries - United States
-    "EMPSALUSM",   # Employment and Salaries - United States - Monthly
-    "EMPSALUSQ",   # Employment and Salaries - United States - Quarterly
-    "EMPSALUSY",   # Employment and Salaries - United States - Yearly
-    "EMPSALUSMNSA", # Employment and Salaries - United States - Monthly - Not Seasonally Adjusted
-    "EMPSALUSQNSA", # Employment and Salaries - United States - Quarterly - Not Seasonally Adjusted
-    "EMPSALUSYNSA", # Employment and Salaries - United States - Yearly - Not Seasonally Adjusted
-    "EMPSALUSMSA",  # Employment and Salaries - United States - Monthly - Seasonally Adjusted
-    "EMPSALUSQSA",  # Employment and Salaries - United States - Quarterly - Seasonally Adjusted
-    "EMPSALUSYSA",  # Employment and Salaries - United States - Yearly - Seasonally Adjusted
-    "EMPSALUSMCH",  # Employment and Salaries - United States - Monthly - Change
-    "EMPSALUSQCH",  # Employment and Salaries - United States - Quarterly - Change
-    "EMPSALUSYCH",  # Employment and Salaries - United States - Yearly - Change
-    "EMPSALUSMPCH", # Employment and Salaries - United States - Monthly - Percent Change
-    "EMPSALUSQPCH", # Employment and Salaries - United States - Quarterly - Percent Change
-    "EMPSALUSYPCH", # Employment and Salaries - United States - Yearly - Percent Change
-    "EMPSALUSMCHNSA", # Employment and Salaries - United States - Monthly - Change - Not Seasonally Adjusted
-    "EMPSALUSQCHNSA", # Employment and Salaries - United States - Quarterly - Change - Not Seasonally Adjusted
-    "EMPSALUSYCHNSA", # Employment and Salaries - United States - Yearly - Change - Not Seasonally Adjusted
-    "EMPSALUSMPCHNSA", # Employment and Salaries - United States - Monthly - Percent Change - Not Seasonally Adjusted
-    "EMPSALUSQPCHNSA", # Employment and Salaries - United States - Quarterly - Percent Change - Not Seasonally Adjusted
-    "EMPSALUSYPCHNSA", # Employment and Salaries - United States - Yearly - Percent Change - Not Seasonally Adjusted
-    "EMPSALUSMCHSA",  # Employment and Salaries - United States - Monthly - Change - Seasonally Adjusted
-    "EMPSALUSQCHSA",  # Employment and Salaries - United States - Quarterly - Change - Seasonally Adjusted
-    "EMPSALUSYCHSA",  # Employment and Salaries - United States - Yearly - Change - Seasonally Adjusted
-    "EMPSALUSMPCHSA", # Employment and Salaries - United States - Monthly - Percent Change - Seasonally Adjusted
-    "EMPSALUSQPCHSA", # Employment and Salaries - United States - Quarterly - Percent Change - Seasonally Adjusted
-    "EMPSALUSYPCHSA", # Employment and Salaries - United States - Yearly - Percent Change - Seasonally Adjusted
+# ── EITS query variables (timeseries/eits/* datasets) ─────────────────────────
+# These are the actual column names accepted by all EITS endpoints.
+# Always include CELL_VALUE in your variables list; add dimension columns to
+# control what you get back, and use filters (e.g. CATEGORY_CODE=RSA) as params.
+
+EITS_COMMON = [
+    "CELL_VALUE",      # The numeric data value (always required)
+    "CATEGORY_CODE",   # Data category filter (e.g. RSA, EMP, SAL)
+    "DATA_TYPE_CODE",  # Level (L), percent change (P), etc.
+    "GEO_LEVEL_CODE",  # N=national, R=region, S=state
+    "GEO_CODE",        # Geography identifier
+    "GEO_NAME",        # Geography label
+    "YEAR",            # 4-digit year
+    "MONTH",           # 2-digit month (01–12)
+    "PERIOD_TYPE",     # M=monthly, Q=quarterly
+    "ERROR_DATA",      # Margin of error
 ]
 
-# Retail Trade (timeseries/eits/retail)
-RETAIL_TRADE = [
-    "RETAIL",      # Retail Trade
-    "RETAILUS",    # Retail Trade - United States
-    "RETAILUSM",   # Retail Trade - United States - Monthly
-    "RETAILUSQ",   # Retail Trade - United States - Quarterly
-    "RETAILUSY",   # Retail Trade - United States - Yearly
-    "RETAILUSMNSA", # Retail Trade - United States - Monthly - Not Seasonally Adjusted
-    "RETAILUSQNSA", # Retail Trade - United States - Quarterly - Not Seasonally Adjusted
-    "RETAILUSYNSA", # Retail Trade - United States - Yearly - Not Seasonally Adjusted
-    "RETAILUSMSA",  # Retail Trade - United States - Monthly - Seasonally Adjusted
-    "RETAILUSQSA",  # Retail Trade - United States - Quarterly - Seasonally Adjusted
-    "RETAILUSYSA",  # Retail Trade - United States - Yearly - Seasonally Adjusted
+# timeseries/eits/mid — Monthly Industry Data (employment, hours, earnings)
+EITS_MID = [
+    "CELL_VALUE",
+    "CATEGORY_CODE",   # EMP (employment), SAL (salaries), HRS (hours)
+    "DATA_TYPE_CODE",
+    "GEO_LEVEL_CODE",
+    "IND_LEVEL_CODE",  # Industry level
+    "IND_CODE",        # Industry code
+    "IND_NAME",        # Industry label
+    "YEAR",
+    "MONTH",
 ]
 
-# Manufacturing (timeseries/eits/manufacturing)
-MANUFACTURING = [
-    "MANUF",       # Manufacturing
-    "MANUFUS",     # Manufacturing - United States
-    "MANUFUSM",    # Manufacturing - United States - Monthly
-    "MANUFUSQ",    # Manufacturing - United States - Quarterly
-    "MANUFUSY",    # Manufacturing - United States - Yearly
-    "MANUFUSMNSA", # Manufacturing - United States - Monthly - Not Seasonally Adjusted
-    "MANUFUSQNSA", # Manufacturing - United States - Quarterly - Not Seasonally Adjusted
-    "MANUFUSYNSA", # Manufacturing - United States - Yearly - Not Seasonally Adjusted
-    "MANUFUSMSA",  # Manufacturing - United States - Monthly - Seasonally Adjusted
-    "MANUFUSQSA",  # Manufacturing - United States - Quarterly - Seasonally Adjusted
-    "MANUFUSYSA",  # Manufacturing - United States - Yearly - Seasonally Adjusted
+# timeseries/eits/retail — Monthly Retail Trade and Food Services
+EITS_RETAIL = [
+    "CELL_VALUE",
+    "CATEGORY_CODE",   # RSA (retail sales adjusted), RCA (retail change adjusted)
+    "DATA_TYPE_CODE",
+    "GEO_LEVEL_CODE",
+    "NAICS",           # NAICS industry code
+    "YEAR",
+    "MONTH",
+    "ERROR_DATA",
 ]
 
-# Construction (timeseries/eits/construction)
-CONSTRUCTION = [
-    "CONST",       # Construction
-    "CONSTUS",     # Construction - United States
-    "CONSTUSM",    # Construction - United States - Monthly
-    "CONSTUSQ",    # Construction - United States - Quarterly
-    "CONSTUSY",    # Construction - United States - Yearly
-    "CONSTUSMNSA", # Construction - United States - Monthly - Not Seasonally Adjusted
-    "CONSTUSQNSA", # Construction - United States - Quarterly - Not Seasonally Adjusted
-    "CONSTUSYNSA", # Construction - United States - Yearly - Not Seasonally Adjusted
-    "CONSTUSMSA",  # Construction - United States - Monthly - Seasonally Adjusted
-    "CONSTUSQSA",  # Construction - United States - Quarterly - Seasonally Adjusted
-    "CONSTUSYSA",  # Construction - United States - Yearly - Seasonally Adjusted
+# timeseries/eits/manufacturing — Manufacturing and Trade Inventories and Sales
+EITS_MFGM = [
+    "CELL_VALUE",
+    "CATEGORY_CODE",   # SMV (sales, manufacturers), IVM (inventories, manufacturers)
+    "DATA_TYPE_CODE",
+    "GEO_LEVEL_CODE",
+    "TYPE_CODE",       # Industry classification
+    "YEAR",
+    "MONTH",
 ]
 
-# Wholesale Trade (timeseries/eits/wholesale)
-WHOLESALE = [
-    "WHOLESALE",   # Wholesale Trade
-    "WHOLESALEUS", # Wholesale Trade - United States
-    "WHOLESALEUSM", # Wholesale Trade - United States - Monthly
-    "WHOLESALEUSQ", # Wholesale Trade - United States - Quarterly
-    "WHOLESALEUSY", # Wholesale Trade - United States - Yearly
+# timeseries/eits/cbh — Construction Spending
+EITS_CONSTRUCTION = [
+    "CELL_VALUE",
+    "CATEGORY_CODE",   # PRIV (private), PUB (public), TOT (total)
+    "TYPE_CODE",
+    "GEO_LEVEL_CODE",
+    "YEAR",
+    "MONTH",
 ]
 
-# Common ACS (American Community Survey) Variables
+# timeseries/eits/wholesale — Monthly Wholesale Trade
+EITS_WHOLESALE = [
+    "CELL_VALUE",
+    "CATEGORY_CODE",
+    "DATA_TYPE_CODE",
+    "NAICS",
+    "YEAR",
+    "MONTH",
+]
+
+# ── ACS (American Community Survey) variables ──────────────────────────────────
+# These are real ACS 5-year estimate variable codes.
+# Source: https://api.census.gov/data/2022/acs/acs5/variables.json
 ACS_VARIABLES = [
-    "B01001_001E",  # Total Population
-    "B19013_001E",  # Median Household Income
-    "B25064_001E",  # Median Gross Rent
-    "B25077_001E",  # Median Home Value
-    "B08301_001E",  # Means of Transportation to Work
-    "B15003_001E",  # Educational Attainment
-    "B17001_001E",  # Poverty Status
-    "B25001_001E",  # Total Housing Units
-    "B25002_001E",  # Occupancy Status
-    "B25003_001E",  # Tenure
+    # Population
+    "B01001_001E",  # Total population
+    "B01002_001E",  # Median age (total)
+    "B01002_002E",  # Median age (male)
+    "B01002_003E",  # Median age (female)
+
+    # Income
+    "B19013_001E",  # Median household income (past 12 months, inflation-adjusted)
+    "B19025_001E",  # Aggregate household income
+    "B19083_001E",  # Gini index of income inequality
+
+    # Poverty
+    "B17001_002E",  # Population below poverty level
+    "B17001_001E",  # Total population for poverty determination
+
+    # Housing
+    "B25001_001E",  # Total housing units
+    "B25002_002E",  # Occupied housing units
+    "B25003_002E",  # Owner-occupied units
+    "B25003_003E",  # Renter-occupied units
+    "B25064_001E",  # Median gross rent
+    "B25077_001E",  # Median home value (owner-occupied units)
+
+    # Education
+    "B15003_017E",  # High school graduate
+    "B15003_022E",  # Bachelor's degree
+    "B15003_023E",  # Master's degree
+    "B15003_025E",  # Doctorate degree
+
+    # Commuting
+    "B08301_001E",  # Total workers 16+ commuting
+    "B08301_010E",  # Worked from home
+    "B08303_001E",  # Travel time to work total
 ]
 
-# Common Economic Census Variables
+# ── Economic Census variables ──────────────────────────────────────────────────
+# Used with year-based datasets like ecnbasic, ecnsize, etc.
 ECONOMIC_CENSUS = [
-    "NAICS2012",   # NAICS Code
-    "NAICS2017",   # NAICS Code (2017)
-    "GEO_ID",      # Geographic Identifier
-    "NAME",        # Name
-    "YEAR",        # Year
-    "ESTAB",       # Establishments
-    "EMP",         # Employment
-    "PAYANN",      # Annual Payroll
-    "RCPTOT",      # Total Receipts
+    "NAICS2017",    # NAICS 2017 code
+    "GEO_ID",       # Geographic identifier
+    "NAME",         # Geography/industry name
+    "YEAR",         # Reference year
+    "ESTAB",        # Number of establishments
+    "EMP",          # Employment (paid employees)
+    "PAYANN",       # Annual payroll ($1,000)
+    "RCPTOT",       # Total receipts/revenue ($1,000)
+    "FIRMPDEMP",    # Firms (partnership / non-employer)
 ]
 
-# Combine all variables
+# Population Estimates Program
+PEP_VARIABLES = [
+    "POP",          # Resident population
+    "DENSITY",      # Population density per square mile
+    "BIRTHS",       # Births
+    "DEATHS",       # Deaths
+    "NATURALINC",   # Natural increase (births minus deaths)
+    "INTERNATIONALMIG",  # Net international migration
+    "DOMESTICMIG",  # Net domestic migration
+    "NETMIG",       # Net migration (domestic + international)
+]
+
+# ── Combined list for autocomplete ────────────────────────────────────────────
 ALL_VARIABLES = sorted(set(
-    ECONOMIC_INDICATORS + 
-    RETAIL_TRADE + 
-    MANUFACTURING + 
-    CONSTRUCTION + 
-    WHOLESALE + 
-    ACS_VARIABLES + 
-    ECONOMIC_CENSUS
+    EITS_COMMON
+    + EITS_MID
+    + EITS_RETAIL
+    + EITS_MFGM
+    + EITS_CONSTRUCTION
+    + EITS_WHOLESALE
+    + ACS_VARIABLES
+    + ECONOMIC_CENSUS
+    + PEP_VARIABLES
 ))
 
-# Categorize variables
 VARIABLE_CATEGORIES = {
-    "economic_indicators": ECONOMIC_INDICATORS,
-    "retail_trade": RETAIL_TRADE,
-    "manufacturing": MANUFACTURING,
-    "construction": CONSTRUCTION,
-    "wholesale": WHOLESALE,
+    "eits_common": EITS_COMMON,
+    "eits_mid": EITS_MID,
+    "eits_retail": EITS_RETAIL,
+    "eits_manufacturing": EITS_MFGM,
+    "eits_construction": EITS_CONSTRUCTION,
+    "eits_wholesale": EITS_WHOLESALE,
     "acs": ACS_VARIABLES,
     "economic_census": ECONOMIC_CENSUS,
+    "pep": PEP_VARIABLES,
 }
 
-def get_variables_by_category(category: str = None):
-    """Get variables filtered by category."""
+
+def get_variables_by_category(category: str = None) -> List[str]:
     if category and category in VARIABLE_CATEGORIES:
         return VARIABLE_CATEGORIES[category]
     return ALL_VARIABLES
 
+
 def validate_variable_format(variable: str) -> bool:
-    """
-    Validate Census Bureau variable name format.
-    Valid formats: uppercase alphanumeric with underscores, typically 5-20 characters.
-    """
-    if not variable or len(variable) == 0:
+    if not variable:
         return False
-    
-    variable_upper = variable.upper()
-    
-    # Must be alphanumeric or underscore, typically 3-50 characters
-    if not all(c.isalnum() or c == '_' for c in variable_upper):
+    v = variable.upper()
+    if not all(c.isalnum() or c == '_' for c in v):
         return False
-    
-    if len(variable_upper) < 3 or len(variable_upper) > 50:
-        return False
-    
-    return True
+    return 2 <= len(v) <= 50
+
 
 def search_variables(query: str, category: str = None, limit: int = 20) -> List[str]:
-    """
-    Search variables matching query (case-insensitive).
-    Returns list of matching variable names.
-    """
-    if not query:
-        variables = get_variables_by_category(category)
-        return variables[:limit]
-    
-    query_upper = query.upper()
     variables = get_variables_by_category(category)
-    matches = [v for v in variables if query_upper in v.upper()]
-    return matches[:limit]
-
+    if not query:
+        return variables[:limit]
+    q = query.upper()
+    return [v for v in variables if q in v][:limit]

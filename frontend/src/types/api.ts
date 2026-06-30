@@ -1,6 +1,4 @@
-// Type definitions matching the FastAPI backend models
-
-export type DataSource = "fred" | "alphavantage" | "yfinance" | "worldbank" | "census";
+export type DataSource = "fred" | "alphavantage" | "yfinance" | "worldbank" | "census" | "edgar" | "oecd" | "ecb";
 
 export interface SeriesDataPoint {
   date: string;
@@ -19,24 +17,26 @@ export interface SeriesResponse {
   data: SeriesDataPoint[];
   data_points: number;
   source?: string;
+  fetch_id?: string;
+  fetched_at?: string;
 }
 
-export interface SeriesInfo {
+export interface SeriesInfoWithProvenance {
   title: string;
   units: string;
   frequency: string;
   data: SeriesDataPoint[];
   data_points: number;
+  fetch_id?: string;
+  fetched_at?: string;
 }
 
 export interface MultipleSeriesResponse {
-  series: Record<string, SeriesInfo>;
-  errors: Array<{
-    series_id: string;
-    error: string;
-  }>;
+  series: Record<string, SeriesInfoWithProvenance>;
+  errors: Array<{ series_id: string; error: string }>;
   successful: number;
   failed: number;
+  source?: string;
 }
 
 export interface SearchResult {
@@ -91,10 +91,7 @@ export interface CensusQueryRequest {
   variables: string[];
   geography: string;
   year?: number;
-  time_range?: {
-    start: string;
-    end: string;
-  };
+  time_range?: { start: string; end: string };
 }
 
 export interface CensusQueryResponse {
@@ -105,6 +102,8 @@ export interface CensusQueryResponse {
   headers: string[];
   data: Record<string, any>[];
   count: number;
+  fetch_id?: string;
+  fetched_at?: string;
 }
 
 export interface CensusDatasetsResponse {
@@ -120,6 +119,39 @@ export interface CensusGeographiesResponse {
   geographies: CensusGeography[];
 }
 
+// Provenance
+export interface FetchRecord {
+  fetch_id: string;
+  source: string;
+  series_id: string;
+  request_params: Record<string, unknown>;
+  fetched_at: string;
+  response_sha256: string;
+  latency_ms?: number;
+}
 
+// AI analysis
+export interface AIAnalysisClaim {
+  text: string;
+  fetch_id: string;
+  series_id: string;
+  date: string;
+  value: number;
+  verified: boolean;
+  verification_note: string;
+}
 
+export interface AIAnalysisRequest {
+  fetch_ids: string[];
+  question?: string;
+}
 
+export interface AIAnalysisResponse {
+  analysis_id: string;
+  model_id: string;
+  summary: string;
+  claims: AIAnalysisClaim[];
+  data_gaps: string[];
+  input_fetch_ids: string[];
+  verified: boolean;
+}
