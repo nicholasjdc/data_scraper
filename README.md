@@ -1,6 +1,6 @@
 # Provenance
 
-A personal economic datum dashboard that treats data provenance as a first-class feature. Every data point is traceable to the exact API call that produced it. An AI analysis layer (Claude) is architecturally constrained to only reason from data that was explicitly fetched from a source API — it cannot draw on training-time knowledge for specific economic values.
+A personal economic data dashboard that treats data provenance as a first-class feature. Every data point is traceable to the exact API call that produced it. An AI analysis layer (Claude) is architecturally constrained to only reason from data that was explicitly fetched from a source API — it cannot draw on training-time knowledge for specific economic values.
 
 ---
 
